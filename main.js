@@ -3,7 +3,7 @@ const request = require('request');
 const numeral = require('numeral');
 const spinner = ["⠿","⠷","⠶","⠦","⠤","⠄","⠀"];
 const refreshms = 300000;
-const threshold = 0.05;
+const threshold = 2.50;
 
 const tickers = {
     btc: {
@@ -79,10 +79,7 @@ function createTicker(ticker){
                     .replace(/\+/,"⤴").replace(/-/,"⤵"));
 
 		if (showThresholdImage) {
-			const direction = numeral(data[display].v - data["old" + display].v)
-                    .format(" +" + data[display].f.replace(/[$%]/,""))
-                    .replace(/\+/,"u").replace(/-/,"d");
-        	
+			const direction = data[display].v - data["old" + display].v > 0 ? "u" : "d";
 			tray.setImage(ticker["i"+direction]);
 		} else {
 			tray.setImage(ticker.i);
