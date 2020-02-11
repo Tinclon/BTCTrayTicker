@@ -11,17 +11,18 @@ const tickers = {
         i: "rcg@2x.png",
         iu: "rcgup@2x.png",
         id: "rcgdown@2x.png",
-        s: 1				// <<- Enter number of 'shares' you own here
+        s: 1,				// <<- Enter number of 'shares' you own here
+        p: "000"			// <<- Enter the decimal precision here
     }
 };
 
 function createTicker(ticker){
     const tray = new Tray(ticker.i),
         data = {
-            price: {f: "$,00.00"},
-            change: {f: "$,0.00"},
-            percent: {f: "0,0.00%"},
-            amount: {f: "$,0.00"}
+            price: {f: `$,00.${ticker.p || "00"}`},
+            change: {f: `$,0.${ticker.p || "00"}`},
+            percent: {f: `0,0.${ticker.p || "00"}%`},
+            amount: {f: `$,0.${ticker.p || "00"}`}
         };
 
     let spinnerIndex = -1,
@@ -49,6 +50,7 @@ function createTicker(ticker){
         }
 
         // Using Google Finance (deprecated, but still seems to be working)
+        /*
         request("http://www.google.com/finance/info?infotype=infoquoteall&q=" + ticker.q, function (error, response, body) {
             if (!error && response && response.statusCode === 200) {
                 const finance = JSON.parse(body.replace("// [", "").replace("]",""));
@@ -67,6 +69,32 @@ function createTicker(ticker){
             } else {
                 tray.setTitle(spinner[spinnerIndex] + "Error: " + (response && response.statusCode || "No Response"));
                 console.log("Error: " + (response && response.statusCode || "No Response: " + error));
+            }
+        });
+        */
+
+        // Using Yahoo Finance (returns less data than google, but at least it's still working)
+        request("https://query1.finance.yahoo.com/v8/finance/chart/" + ticker.q + "?range=1d&interval=5m", function (error, response, body) {
+            if (!error && response && response.statusCode === 200) {
+                const finance = JSON.parse(body);
+
+                if (finance && finance.chart && finance.chart.result && finance.chart.result[0] &&
+                    finance.chart.result[0].indicators && finance.chart.result[0].indicators.quote &&
+                    finance.chart.result[0].indicators.quote[0] && finance.chart.result[0].indicators.quote[0].open) {
+
+                    let opens = finance.chart.result[0].indicators.quote[0].open.filter(open => open);
+                    let index = Math.max(0, opens.length - 1);
+                    data.price.v = parseFloat(opens[index]) / parseFloat(ticker.d || 1.0);
+                    data.change.v = 0;
+                    data.percent.v = 0;
+                    data.amount.v = data.price.v * ticker.s * parseFloat(ticker.d || 1.0);
+
+                    showDiff = Math.abs(data.oldprice.v - data.price.v) > 0.01;
+                    updateDisplay();
+                    showDiff && setTimeout(() => (showDiff = !showDiff), (refreshms / 10));
+                }
+            } else {
+                tray.setTitle(`${spinner[spinnerIndex]}Error: ${(response && response.statusCode || "No Response")}`);
             }
         });
     }
